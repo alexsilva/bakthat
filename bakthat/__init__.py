@@ -212,7 +212,9 @@ def _get_exclude(exclude_file):
 @app.cmd_arg('-k', '--key', type=str, default=None, help="Custom key for periodic backups (works only with BakManager.io hook.)")
 @app.cmd_arg('--exclude-file', type=str, default=None)
 @app.cmd_arg('--s3-reduced-redundancy', action="store_true")
-def backup(filename=os.getcwd(), destination=None, profile="default", config=CONFIG_FILE, prompt="yes", tags=[], key=None, exclude_file=None, s3_reduced_redundancy=False, **kwargs):
+@app.cmd_arg('--stored-filename-custom', type=str, help='file name used as a key for the backend.', default='')
+def backup(filename=os.getcwd(), destination=None, profile="default", config=CONFIG_FILE, prompt="yes", tags=[],
+           key=None, exclude_file=None, s3_reduced_redundancy=False, stored_filename_custom='', **kwargs):
     """Perform backup.
 
     :type filename: str
@@ -238,12 +240,21 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
     :type custom_filename: str
     :keyword custom_filename: Override the original filename (only in metadata)
 
+    :type stored_filename_custom: str
+    :keyword custom_filename: File name used as a key for the backend.
+
     :rtype: dict
     :return: A dict containing the following keys: stored_filename, size, metadata, backend and filename.
 
     """
     storage_backend, destination, conf = _get_store_backend(config, destination, profile)
-    backup_file_fmt = "{0}.{1}.tgz"
+
+    def stored_filename_formatter(arcname, date_component, compress=False):
+        if stored_filename_custom:
+            name = stored_filename_custom + '.' + str(date_component)
+        else:
+            name = "{0}.{1}".format(arcname, date_component)
+        return name + ('.tgz' if compress else '')
 
     session_id = str(uuid.uuid4())
     events.before_backup(session_id)
@@ -253,9 +264,6 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
         compress = conf.get("compress", True)
     else:
         compress = config.get(profile).get("compress", True)
-
-    if not compress:
-        backup_file_fmt = "{0}.{1}"
 
     log.info("Backing up " + filename)
 
@@ -274,7 +282,7 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
     arcname = filename.strip('/').split('/')[-1]
     now = datetime.utcnow()
     date_component = now.strftime("%Y%m%d%H%M%S")
-    stored_filename = backup_file_fmt.format(arcname, date_component)
+    stored_filename = stored_filename_formatter(arcname, date_component, compress)
 
     backup_date = int(now.strftime("%s"))
     backup_data = dict(filename=kwargs.get("custom_filename", arcname),
@@ -309,7 +317,7 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
 
         # removing extension to reformat filename
         new_arcname = re.sub(r'(\.t(ar\.)?gz)', '', arcname)
-        stored_filename = backup_file_fmt.format(new_arcname, date_component)
+        stored_filename = stored_filename_formatter(new_arcname, date_component, compress)
 
         with open(outname) as outfile:
             backup_data["size"] = os.fstat(outfile.fileno()).st_size
