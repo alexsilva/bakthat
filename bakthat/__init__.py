@@ -281,11 +281,14 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
 
     arcname = filename.strip('/').split('/')[-1]
     now = datetime.utcnow()
-    date_component = now.strftime("%Y%m%d%H%M%S")
-    stored_filename = stored_filename_formatter(arcname, date_component, compress)
 
+    date_component = now.strftime("%Y%m%d%H%M%S")
     backup_date = int(now.strftime("%s"))
-    backup_data = dict(filename=kwargs.get("custom_filename", arcname),
+
+    stored_filename = stored_filename_formatter(arcname, date_component, compress)
+    custom_filename = kwargs.get("custom_filename", (stored_filename_custom or arcname))
+
+    backup_data = dict(filename=custom_filename,
                        backup_date=backup_date,
                        last_updated=backup_date,
                        backend=destination,
