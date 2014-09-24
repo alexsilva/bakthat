@@ -213,8 +213,11 @@ def _get_exclude(exclude_file):
 @app.cmd_arg('--exclude-file', type=str, default=None)
 @app.cmd_arg('--s3-reduced-redundancy', action="store_true")
 @app.cmd_arg('--stored-filename-custom', type=str, help='file name used as a key for the backend.', default='')
-def backup(filename=os.getcwd(), destination=None, profile="default", config=CONFIG_FILE, prompt="yes", tags=[],
-           key=None, exclude_file=None, s3_reduced_redundancy=False, stored_filename_custom='', **kwargs):
+@app.cmd_arg('--custom-filename', type=str, help='Override the original filename (only in metadata)', default='')
+def backup(filename=os.getcwd(), destination=None, profile="default",
+           config=CONFIG_FILE, prompt="yes", tags=[], key=None, exclude_file=None,
+           s3_reduced_redundancy=False, stored_filename_custom='', custom_filename='',
+           **kwargs):
     """Perform backup.
 
     :type filename: str
@@ -286,7 +289,7 @@ def backup(filename=os.getcwd(), destination=None, profile="default", config=CON
     backup_date = int(now.strftime("%s"))
 
     stored_filename = stored_filename_formatter(arcname, date_component, compress)
-    custom_filename = kwargs.get("custom_filename", (stored_filename_custom or arcname))
+    custom_filename = (custom_filename or stored_filename_custom or arcname)
 
     backup_data = dict(filename=custom_filename,
                        backup_date=backup_date,
